@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#100814">
+  <meta name="color-scheme" content="dark">
+  <title>Fuga do Belford</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <canvas id="gl"></canvas>
+  <div id="vignette"></div>
+  <div id="flash"></div>
+
+  <div id="hud" class="hidden">
+    <div class="hud-top">
+      <div id="score">0 m</div>
+      <div class="hud-row">
+        <span id="fluxo">de boa</span>
+        <span id="hud-best">recorde 0 m</span>
+      </div>
+    </div>
+    <p id="hint">Deslize ← → para a faixa · ↑ para o buraco</p>
+  </div>
+
+  <div id="callout"></div>
+  <div id="countdown" class="hidden">3</div>
+
+  <section id="screen-loading" class="screen">
+    <div class="top-block">
+      <span class="badge">BETA</span>
+      <p class="kicker">Baixada Fluminense</p>
+      <h1>FUGA DO<br><span>BELFORD</span></h1>
+    </div>
+    <p id="load-msg" class="loading-msg">Aquecendo os motores…</p>
+  </section>
+
+  <section id="screen-menu" class="screen hidden">
+    <div class="top-block">
+      <span class="badge">BETA</span>
+      <p class="kicker">Baixada Fluminense</p>
+      <h1>FUGA DO<br><span>BELFORD</span></h1>
+      <p class="tagline">A rua não espera. Você corre.</p>
+    </div>
+    <div class="bottom-block">
+      <button id="btn-play" class="primary" type="button">JOGAR</button>
+      <p class="best">Recorde: <strong id="menu-best">0 m</strong></p>
+      <ul class="hints">
+        <li>Deslize para os lados e troque de faixa</li>
+        <li>Toque na esquerda ou na direita da tela</li>
+        <li>Deslize para cima e pule o buraco</li>
+      </ul>
+      <p class="offline">0.1.0-beta · offline · sem login · sem internet</p>
+    </div>
+  </section>
+
+  <section id="screen-over" class="screen hidden">
+    <div class="top-block">
+      <span class="badge">BETA</span>
+      <p id="death-reason" class="kicker">A moto não freou</p>
+      <h2>GAME OVER</h2>
+      <p id="new-record" class="new-record hidden">NOVO RECORDE</p>
+      <p class="final-score"><span id="over-score">0 m</span></p>
+      <p class="best">Recorde: <strong id="over-best">0 m</strong></p>
+    </div>
+    <div class="bottom-block">
+      <button id="btn-retry" class="primary" type="button">JOGAR DE NOVO</button>
+      <button id="btn-menu" class="ghost" type="button">MENU</button>
+    </div>
+  </section>
+
+  <script>
+    window.onerror = function (msg) {
+      var el = document.getElementById('load-msg');
+      if (el && el.textContent.indexOf('Erro') !== 0) el.textContent = 'Erro ao abrir: ' + msg;
+    };
+  </script>
+  <script src="js/game.js"></script>
+</body>
+</html>

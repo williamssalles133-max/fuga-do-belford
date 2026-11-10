@@ -1,0 +1,19 @@
+{
+  "name": "fuga-do-belford",
+  "private": true,
+  "version": "0.1.0-beta",
+  "description": "Fuga do Belford — runner 3D offline (Three.js + WebView)",
+  "type": "module",
+  "scripts": {
+    "build:web": "node scripts/build-web.mjs",
+    "test:logic": "node scripts/test-logic.mjs"
+  },
+  "dependencies": {
+    "three": "0.160.1"
+  },
+  "devDependencies": {
+    "@fontsource/bebas-neue": "^5.2.5",
+    "@fontsource/outfit": "^5.2.5",
+    "esbuild": "^0.25.0"
+  }
+}
