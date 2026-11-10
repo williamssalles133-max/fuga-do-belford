@@ -1,22 +1,22 @@
-// Corredor estilizado, visto de costas (câmera atrás, como num runner).
-// O moletom amarelo e o raio "FOGE" são o que se lê no celular.
+// Corredor em proporção humana, visto de costas.
+// Jaqueta verde, calça clara e mochila — lê na rua de dia sem virar boneco de neon.
 
 import * as THREE from 'three';
-import { makeJacketGraphic } from './textures.js';
+import { makeFabricTexture } from './textures.js';
 
-function std(hex, roughness, metalness) {
-  return new THREE.MeshStandardMaterial({ color: hex, roughness, metalness });
-}
-
-function basic(hex, mul) {
-  const mat = new THREE.MeshBasicMaterial({ color: hex });
-  if (mul && mul !== 1) mat.color.multiplyScalar(mul);
-  return mat;
+function std(hex, roughness, metalness, map) {
+  return new THREE.MeshStandardMaterial({
+    color: map ? 0xffffff : hex,
+    map: map || null,
+    roughness,
+    metalness,
+  });
 }
 
 function mesh(geo, mat, x, y, z, parent) {
   const m = new THREE.Mesh(geo, mat);
   m.position.set(x, y, z);
+  m.castShadow = true;
   parent.add(m);
   return m;
 }
@@ -24,154 +24,94 @@ function mesh(geo, mat, x, y, z, parent) {
 export function createPlayer() {
   const root = new THREE.Group();
   const visual = new THREE.Group();
-  visual.scale.setScalar(1.18);
   root.add(visual);
 
-  const skin = std(0x8d552f, 0.72, 0);
-  const jacket = std(0xffc400, 0.52, 0.06);
-  const jacketDark = std(0xc98a00, 0.58, 0.05);
-  const shorts = std(0xff2d6a, 0.62, 0.04);
-  const shoe = std(0xf6f3ee, 0.38, 0.12);
-  const sole = basic(0x19e6ff, 2.6);
-  const hair = std(0x1b120e, 0.85, 0);
-  const shade = std(0x10141c, 0.2, 0.6);
-  const graphic = makeJacketGraphic();
+  const skin = std(0x8d5a3c, 0.72, 0);
+  const jacketMap = makeFabricTexture('#355744', false);
+  const jacket = std(0xffffff, 0.78, 0.02, jacketMap);
+  const pants = std(0xe4ddd2, 0.8, 0);
+  const shoe = std(0x2c2e32, 0.55, 0.15);
+  const hair = std(0x1a120e, 0.8, 0);
+  const pack = std(0x2a2d31, 0.7, 0.08);
 
-  const hipY = 0.98;
+  const hipY = 0.92;
 
-  // Pernas: pivô no quadril, canela no joelho.
   const legs = [];
   for (const side of [-1, 1]) {
     const hip = new THREE.Group();
-    hip.position.set(side * 0.16, hipY, 0);
+    hip.position.set(side * 0.11, hipY, 0);
     visual.add(hip);
-    const thigh = mesh(new THREE.CapsuleGeometry(0.09, 0.34, 4, 8), skin, 0, -0.24, 0, hip);
+    mesh(new THREE.CapsuleGeometry(0.07, 0.36, 3, 6), pants, 0, -0.26, 0, hip);
     const knee = new THREE.Group();
-    knee.position.set(0, -0.42, 0);
+    knee.position.set(0, -0.46, 0);
     hip.add(knee);
-    mesh(new THREE.CapsuleGeometry(0.075, 0.32, 4, 8), skin, 0, -0.22, 0, knee);
-    const foot = mesh(new THREE.BoxGeometry(0.16, 0.1, 0.32), shoe, 0, -0.42, -0.06, knee);
-    mesh(new THREE.BoxGeometry(0.17, 0.045, 0.34), sole, 0, -0.48, -0.06, knee);
-    legs.push({ hip, thigh, knee, foot, side });
+    mesh(new THREE.CapsuleGeometry(0.055, 0.32, 3, 6), skin, 0, -0.2, 0, knee);
+    mesh(new THREE.BoxGeometry(0.1, 0.08, 0.24), shoe, 0, -0.4, -0.04, knee);
+    legs.push({ hip, knee, side });
   }
 
   const torso = new THREE.Group();
-  torso.position.set(0, hipY + 0.08, 0);
+  torso.position.set(0, hipY, 0);
   visual.add(torso);
-  mesh(new THREE.BoxGeometry(0.66, 0.62, 0.34), jacket, 0, 0.36, 0, torso);
-  // Faixa do moletom.
-  mesh(new THREE.BoxGeometry(0.68, 0.08, 0.36), shorts, 0, 0.12, 0, torso);
-  mesh(new THREE.BoxGeometry(0.5, 0.16, 0.36), jacketDark, 0, 0.66, 0, torso);
-  mesh(new THREE.PlaneGeometry(0.42, 0.42), graphic, 0, 0.38, 0.176, torso);
+  mesh(new THREE.BoxGeometry(0.42, 0.52, 0.22), jacket, 0, 0.32, 0, torso);
+  mesh(new THREE.BoxGeometry(0.36, 0.28, 0.16), pack, 0, 0.34, 0.16, torso);
 
   const arms = [];
   for (const side of [-1, 1]) {
     const shoulder = new THREE.Group();
-    shoulder.position.set(side * 0.4, 0.58, 0);
+    shoulder.position.set(side * 0.26, 0.5, 0);
     torso.add(shoulder);
-    mesh(new THREE.CapsuleGeometry(0.075, 0.28, 3, 6), jacket, 0, -0.2, 0, shoulder);
+    mesh(new THREE.CapsuleGeometry(0.05, 0.26, 3, 6), jacket, 0, -0.18, 0, shoulder);
     const elbow = new THREE.Group();
-    elbow.position.set(0, -0.36, 0);
+    elbow.position.set(0, -0.32, 0);
     shoulder.add(elbow);
-    mesh(new THREE.CapsuleGeometry(0.06, 0.24, 3, 6), skin, 0, -0.16, 0, elbow);
-    arms.push({ shoulder, elbow, side });
+    mesh(new THREE.CapsuleGeometry(0.04, 0.22, 3, 6), skin, 0, -0.14, 0, elbow);
+    arms.push({ shoulder, elbow });
   }
 
   const headPivot = new THREE.Group();
-  headPivot.position.set(0, 0.86, 0);
+  headPivot.position.set(0, 0.7, 0);
   torso.add(headPivot);
-  // Capuz por cima, cabeça um pouco à frente pra o rosto existir de perfil.
-  mesh(new THREE.SphereGeometry(0.24, 16, 14), jacket, 0, 0.08, 0.02, headPivot);
-  mesh(new THREE.SphereGeometry(0.2, 16, 14), skin, 0, 0.02, -0.04, headPivot);
-  mesh(new THREE.SphereGeometry(0.2, 12, 10), hair, 0, 0.1, -0.02, headPivot);
-  mesh(new THREE.BoxGeometry(0.34, 0.08, 0.12), shade, 0, 0.04, -0.18, headPivot);
-  // Aba do boné pra trás (virada pra câmera).
-  mesh(new THREE.BoxGeometry(0.28, 0.035, 0.16), jacketDark, 0, 0.16, 0.16, headPivot);
+  mesh(new THREE.SphereGeometry(0.13, 14, 12), skin, 0, 0.02, 0, headPivot);
+  mesh(new THREE.SphereGeometry(0.135, 12, 8), hair, 0, 0.06, 0.01, headPivot);
 
   const shadow = new THREE.Mesh(
-    new THREE.CircleGeometry(0.46, 18),
-    new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.45, depthWrite: false })
+    new THREE.CircleGeometry(0.38, 16),
+    new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.22, depthWrite: false })
   );
   shadow.rotation.x = -Math.PI / 2;
   shadow.position.y = 0.03;
 
-  const dustGeo = new THREE.SphereGeometry(0.12, 6, 6);
-  const dustMat = new THREE.MeshBasicMaterial({ color: 0xc8b8a0, transparent: true, opacity: 0.0, depthWrite: false });
-  const dustL = new THREE.Mesh(dustGeo, dustMat.clone());
-  const dustR = new THREE.Mesh(dustGeo, dustMat.clone());
-  dustL.position.y = 0.08;
-  dustR.position.y = 0.08;
-  root.add(dustL, dustR);
-
   let phase = 0;
-  let stepSide = 1;
-
-  function setJacketColor(hex) {
-    jacket.color.set(hex);
-    jacketDark.color.copy(jacket.color).multiplyScalar(0.72);
-  }
 
   function update(dt, speed, airborne, lateral) {
-    const pace = airborne ? 0 : 9 + Math.min(speed, 36) * 0.22;
+    const pace = airborne ? 0 : 8.5 + Math.min(speed, 34) * 0.2;
     phase += dt * pace;
     const swing = airborne ? 0 : 1;
-
     for (const leg of legs) {
       const s = Math.sin(phase + (leg.side === 1 ? Math.PI : 0));
-      leg.hip.rotation.x = s * 0.75 * swing + (airborne ? -0.9 : 0);
-      const kneeBend = airborne ? 1.35 : Math.max(0, -s) * 1.15;
-      leg.knee.rotation.x = kneeBend;
+      leg.hip.rotation.x = s * 0.7 * swing + (airborne ? -0.7 : 0);
+      leg.knee.rotation.x = airborne ? 1.15 : Math.max(0, -s) * 1.05;
     }
-    for (const arm of arms) {
-      const s = Math.sin(phase + (arm.side === 1 ? 0 : Math.PI));
-      arm.shoulder.rotation.x = airborne ? -0.8 : s * 0.7;
-      arm.elbow.rotation.x = airborne ? -0.4 : -0.35 + Math.max(0, s) * -0.4;
+    for (let i = 0; i < arms.length; i++) {
+      const s = Math.sin(phase + (i === 0 ? Math.PI : 0));
+      arms[i].shoulder.rotation.x = airborne ? -0.5 : s * 0.55;
     }
-
-    const bob = airborne ? 0 : Math.abs(Math.sin(phase * 2)) * 0.045;
-    visual.position.y = bob;
-    // Rotação X negativa = tronco pra frente (sentido da corrida, -Z).
-    visual.rotation.x = airborne ? -0.28 : -0.14;
-    const rollTarget = THREE.MathUtils.clamp(-lateral * 0.035, -0.35, 0.35);
+    visual.position.y = airborne ? 0 : Math.abs(Math.sin(phase * 2)) * 0.03;
+    visual.rotation.x = airborne ? -0.18 : -0.08;
+    const rollTarget = THREE.MathUtils.clamp(-lateral * 0.03, -0.28, 0.28);
     visual.rotation.z += (rollTarget - visual.rotation.z) * Math.min(1, dt * 8);
-    torso.rotation.y = Math.sin(phase) * 0.06 * swing;
-    headPivot.rotation.z = Math.sin(phase * 0.5) * 0.04;
-
-    // Poeira no pé que desce.
-    if (!airborne && Math.sin(phase) > 0.92 && stepSide !== 1) {
-      puff(dustL, -0.16);
-      stepSide = 1;
-    } else if (!airborne && Math.sin(phase) < -0.92 && stepSide !== -1) {
-      puff(dustR, 0.16);
-      stepSide = -1;
-    }
-    fadeDust(dustL, dt);
-    fadeDust(dustR, dt);
 
     const lift = root.position.y;
-    const sScale = 1 / (1 + lift * 0.85);
-    shadow.scale.setScalar(sScale * 1.15);
-    shadow.material.opacity = 0.45 * Math.max(0.15, 1 - lift * 0.35);
-    // Sombra fica no chão, não sobe junto com o pulo.
+    shadow.scale.setScalar((1 / (1 + lift * 0.8)) * 1.05);
+    shadow.material.opacity = 0.22 * Math.max(0.2, 1 - lift * 0.3);
     shadow.position.set(root.position.x, 0.03, root.position.z);
   }
 
-  function puff(sprite, x) {
-    sprite.position.set(x, 0.08, 0.1);
-    sprite.scale.setScalar(0.6);
-    sprite.material.opacity = 0.45;
+  function setJacketColor(hex) {
+    jacket.color.set(hex);
+    jacket.map = null;
   }
 
-  function fadeDust(sprite, dt) {
-    sprite.material.opacity = Math.max(0, sprite.material.opacity - dt * 1.6);
-    sprite.scale.multiplyScalar(1 + dt * 2.2);
-    sprite.position.y += dt * 0.4;
-  }
-
-  return {
-    root,
-    shadow,
-    update,
-    setJacketColor,
-  };
+  return { root, shadow, update, setJacketColor };
 }

@@ -1,7 +1,7 @@
 // Constantes de jogo. Ajuste aqui para mexer em ritmo, hitbox e tamanho da rua
 // sem caçar número mágico pelo resto do código.
 
-export const VERSION = '0.1.0-beta';
+export const VERSION = '0.2.0-beta';
 
 // Três faixas. O espaço entre centros cabe um ônibus sem invadir a faixa vizinha.
 export const LANE_X = [-2.6, 0, 2.6];

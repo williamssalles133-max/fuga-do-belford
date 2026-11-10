@@ -3,11 +3,6 @@
 // Pontos de extensão no window.Fuga (cor do moletom, recorde). Sem rede.
 
 import * as THREE from 'three';
-import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
-import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
-import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
-import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
-
 import {
   VERSION,
   LANE_X,
@@ -32,10 +27,13 @@ import { createWorld } from './world.js';
 import { createPlayer } from './player.js';
 import { createTraffic } from './obstacles.js';
 import { createSky } from './sky.js';
-import { createRain, createBurst } from './fx.js';
+import { createBurst } from './fx.js';
 
 const DEATH = {
   moto: 'A moto não freou',
+  carro: 'O carro fechou a faixa',
+  taxi: 'O táxi amarelo te pegou',
+  van: 'A van não desviou',
   onibus: 'O ônibus lotado te engoliu',
   buraco: 'O buraco mordeu',
 };
@@ -90,21 +88,17 @@ let prCap = 1.6;
 let qualityDropped = false;
 let fpsFrames = 0;
 let fpsAccum = 0;
-let useComposer = true;
-let composerFailed = false;
 let fluxoText = '';
 let hintTimer = 0;
 
 let renderer;
-let composer;
-let bloom;
+let sun;
 let scene;
 let camera;
 let world;
 let player;
 let traffic;
 let sky;
-let rain;
 let burst;
 let clockLast = 0;
 
@@ -146,7 +140,7 @@ function boot() {
     return nextFrame();
   }).then(() => {
     initThree();
-    setLoad('Acendendo o neon…');
+    setLoad('Puxando os fios da rua…');
     return nextFrame();
   }).then(() => {
     showMenu();
@@ -168,20 +162,34 @@ function initThree() {
   });
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.08;
-  renderer.setClearColor(0x140c18, 1);
+  renderer.toneMappingExposure = 1.05;
+  renderer.setClearColor(0xc5ccd2, 1);
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
   scene = new THREE.Scene();
-  scene.fog = new THREE.FogExp2(0x160e1c, 0.0175);
+  // Névoa clara de dia nublado. Não esconde o ônibus a 60 m.
+  scene.fog = new THREE.FogExp2(0xc5ccd2, 0.011);
 
-  camera = new THREE.PerspectiveCamera(76, 9 / 16, 0.1, 320);
+  camera = new THREE.PerspectiveCamera(70, 9 / 16, 0.12, 280);
   camera.position.set(0, 5, 8);
 
-  scene.add(new THREE.HemisphereLight(0x7d62b0, 0x3a2414, 1.45));
-  scene.add(new THREE.AmbientLight(0x2c2140, 0.5));
-  const moon = new THREE.DirectionalLight(0xcdd6ff, 2.6);
-  moon.position.set(-14, 22, 16);
-  scene.add(moon);
+  scene.add(new THREE.HemisphereLight(0xd7e0e6, 0x8a7b68, 0.72));
+  scene.add(new THREE.AmbientLight(0xfff8ee, 0.28));
+  sun = new THREE.DirectionalLight(0xfff3dd, 2.35);
+  sun.position.set(16, 28, 12);
+  sun.castShadow = true;
+  sun.shadow.mapSize.set(1024, 1024);
+  sun.shadow.camera.near = 2;
+  sun.shadow.camera.far = 70;
+  sun.shadow.camera.left = -16;
+  sun.shadow.camera.right = 16;
+  sun.shadow.camera.top = 22;
+  sun.shadow.camera.bottom = -14;
+  sun.shadow.bias = -0.0006;
+  sun.target.position.set(0, 0, -8);
+  scene.add(sun);
+  scene.add(sun.target);
 
   try {
     scene.environment = makeEnvironment(renderer);
@@ -191,7 +199,7 @@ function initThree() {
 
   const deck = new THREE.Mesh(
     new THREE.CircleGeometry(500, 8),
-    new THREE.MeshBasicMaterial({ color: 0x100c14 })
+    new THREE.MeshBasicMaterial({ color: 0x9a968e })
   );
   deck.rotation.x = -Math.PI / 2;
   deck.position.y = -0.45;
@@ -209,18 +217,10 @@ function initThree() {
 
   traffic = createTraffic(world.root);
 
-  rain = createRain(260);
-  camera.add(rain.points);
-
   burst = createBurst();
   scene.add(burst.group);
 
   resize();
-  composer = new EffectComposer(renderer);
-  composer.addPass(new RenderPass(scene, camera));
-  bloom = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.52, 0.4, 0.82);
-  composer.addPass(bloom);
-  composer.addPass(new OutputPass());
 
   window.addEventListener('resize', resize);
   if (window.visualViewport) window.visualViewport.addEventListener('resize', resize);
@@ -236,18 +236,23 @@ function makeEnvironment(gl) {
   const envScene = new THREE.Scene();
   envScene.add(new THREE.Mesh(
     new THREE.SphereGeometry(14, 16, 12),
-    new THREE.MeshBasicMaterial({ color: 0x160818, side: THREE.BackSide })
+    new THREE.MeshBasicMaterial({ color: 0xb7c2c8, side: THREE.BackSide })
   ));
-  const cols = [0xff2d6a, 0x19e6ff, 0xffb000, 0x7c4dff, 0xffe14a, 0xff6a2c];
-  for (let i = 0; i < cols.length; i++) {
-    const mat = new THREE.MeshBasicMaterial({ color: cols[i] });
-    mat.color.multiplyScalar(5.5);
-    const plane = new THREE.Mesh(new THREE.PlaneGeometry(7, 2.6), mat);
-    const a = (i / cols.length) * Math.PI * 2;
-    plane.position.set(Math.cos(a) * 7, (i % 2) * 2.2 - 0.4, Math.sin(a) * 7);
-    plane.lookAt(0, 1, 0);
-    envScene.add(plane);
-  }
+  const ground = new THREE.Mesh(
+    new THREE.CircleGeometry(12, 12),
+    new THREE.MeshBasicMaterial({ color: 0x8d7d6c })
+  );
+  ground.rotation.x = -Math.PI / 2;
+  ground.position.y = -2;
+  envScene.add(ground);
+  const sunPanel = new THREE.Mesh(
+    new THREE.PlaneGeometry(8, 4),
+    new THREE.MeshBasicMaterial({ color: 0xfff6e4 })
+  );
+  sunPanel.material.color.multiplyScalar(3);
+  sunPanel.position.set(4, 6, 2);
+  sunPanel.lookAt(0, 0, 0);
+  envScene.add(sunPanel);
   const pmrem = new THREE.PMREMGenerator(gl);
   const tex = pmrem.fromScene(envScene, 0.04).texture;
   pmrem.dispose();
@@ -262,10 +267,6 @@ function resize() {
   const pr = Math.max(0.7, Math.min(dpr, 900 / w));
   renderer.setPixelRatio(pr);
   renderer.setSize(w, h, false);
-  if (composer) {
-    composer.setPixelRatio(pr);
-    composer.setSize(w, h);
-  }
   camera.aspect = w / h;
   camera.updateProjectionMatrix();
 }
@@ -486,7 +487,6 @@ function update(dt, realDt) {
     traffic.update(dt, world.root.position.z, simSpeed, playerX, jumpY, () => {}, () => {});
   }
 
-  rain.update(dt);
   burst.update(dt);
   updateCamera(dt, simSpeed);
 }
@@ -536,8 +536,8 @@ function maybeDropQuality(frameDt) {
   if (fps < 45) {
     qualityDropped = true;
     prCap = 1.05;
-    if (bloom) bloom.strength = 0.32;
-    rain.setCountActive(0);
+    if (sun) sun.castShadow = false;
+    renderer.shadowMap.enabled = false;
     resize();
   }
 }
@@ -553,17 +553,7 @@ function loop(now) {
   const realDt = Math.min(0.25, frameDt);
   update(dt, realDt);
   maybeDropQuality(frameDt);
-  if (useComposer && !composerFailed) {
-    try {
-      composer.render();
-    } catch (err) {
-      composerFailed = true;
-      useComposer = false;
-      renderer.render(scene, camera);
-    }
-  } else {
-    renderer.render(scene, camera);
-  }
+  renderer.render(scene, camera);
 }
 
 function canPlay() {

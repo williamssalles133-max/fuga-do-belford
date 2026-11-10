@@ -1,12 +1,14 @@
-// Tudo desenhado em canvas na hora. Sem PNG, sem rede.
-// As texturas de cor vão em sRGB pra o tone mapping não lavar a tinta.
+// Texturas feitas na hora, em atlas, para a rua de dia.
+// Sem download: concreto, reboco, asfalto, roupa e vidro saem do canvas.
 
 import * as THREE from 'three';
 
-export function canvasTexture(canvas) {
+export function canvasTexture(canvas, repeat) {
   const tex = new THREE.CanvasTexture(canvas);
   tex.colorSpace = THREE.SRGBColorSpace;
-  tex.anisotropy = 8;
+  tex.anisotropy = 4;
+  tex.wrapS = repeat ? THREE.RepeatWrapping : THREE.ClampToEdgeWrapping;
+  tex.wrapT = repeat ? THREE.RepeatWrapping : THREE.ClampToEdgeWrapping;
   tex.needsUpdate = true;
   return tex;
 }
@@ -18,55 +20,56 @@ function canvas(w, h) {
   return c;
 }
 
-export function makeRoadTexture() {
+function noiseDots(g, w, h, count, alpha) {
+  for (let i = 0; i < count; i++) {
+    const v = 40 + Math.random() * 80;
+    g.fillStyle = `rgba(${v | 0},${(v * 0.95) | 0},${(v * 0.85) | 0},${alpha})`;
+    g.fillRect(Math.random() * w, Math.random() * h, 1 + Math.random() * 2, 1 + Math.random() * 2);
+  }
+}
+
+export function makeAsphaltTexture() {
   const w = 512;
   const h = 1024;
   const c = canvas(w, h);
   const g = c.getContext('2d');
-  g.fillStyle = '#1c1e28';
+  g.fillStyle = '#6a6e73';
   g.fillRect(0, 0, w, h);
-
-  // Granulado do asfalto. Bem sutil pra emenda entre trechos não gritar.
-  for (let i = 0; i < 5000; i++) {
-    const v = Math.random() * 40;
-    g.fillStyle = `rgba(${v | 0},${v | 0},${v | 0},0.18)`;
-    g.fillRect(Math.random() * w, Math.random() * h, 2, 2);
+  noiseDots(g, w, h, 9000, 0.35);
+  // Remendos e manchas de óleo. Asfalto seco, não espelho.
+  for (let i = 0; i < 18; i++) {
+    g.fillStyle = i % 3 === 0 ? 'rgba(30,30,32,0.28)' : 'rgba(90,90,92,0.35)';
+    g.beginPath();
+    g.ellipse(Math.random() * w, Math.random() * h, 18 + Math.random() * 40, 8 + Math.random() * 16, Math.random(), 0, Math.PI * 2);
+    g.fill();
   }
-
-  // Faixas de desgaste no meio de cada pista.
-  g.fillStyle = 'rgba(0,0,0,0.18)';
-  const lanes = [0.2, 0.5, 0.8];
-  for (const t of lanes) {
-    g.fillRect(w * t - 28, 0, 56, h);
+  g.strokeStyle = 'rgba(40,40,42,0.45)';
+  g.lineWidth = 2;
+  for (let i = 0; i < 7; i++) {
+    g.beginPath();
+    const y = Math.random() * h;
+    g.moveTo(20, y);
+    g.lineTo(w - 20, y + (Math.random() - 0.5) * 30);
+    g.stroke();
   }
-
-  // Bordas amarelas.
-  g.fillStyle = '#e2b12a';
-  g.fillRect(10, 0, 12, h);
-  g.fillRect(w - 22, 0, 12, h);
-
-  // Tracejado entre as faixas. Período divide 1024, então a emenda fecha.
-  g.fillStyle = '#f4f1ea';
+  // Faixa desgastada. O período fecha na emenda do trecho.
+  g.fillStyle = 'rgba(214,208,196,0.85)';
   const marks = [w * 0.333, w * 0.666];
-  const period = 128;
   for (const x of marks) {
-    for (let y = 0; y < h; y += period) {
-      g.fillRect(x - 5, y + 8, 10, 64);
-    }
+    for (let y = 0; y < h; y += 128) g.fillRect(x - 4, y + 16, 8, 52);
   }
-
-  const tex = canvasTexture(c);
-  tex.wrapS = THREE.ClampToEdgeWrapping;
-  tex.wrapT = THREE.RepeatWrapping;
-  return tex;
+  g.fillStyle = 'rgba(196,168,72,0.9)';
+  g.fillRect(8, 0, 7, h);
+  g.fillRect(w - 15, 0, 7, h);
+  return canvasTexture(c, false);
 }
 
 export function makeSidewalkTexture() {
   const c = canvas(256, 256);
   const g = c.getContext('2d');
-  g.fillStyle = '#6e675d';
+  g.fillStyle = '#b7b1a6';
   g.fillRect(0, 0, 256, 256);
-  g.strokeStyle = 'rgba(40,32,28,0.45)';
+  g.strokeStyle = 'rgba(90,84,76,0.55)';
   g.lineWidth = 3;
   for (let i = 0; i <= 4; i++) {
     g.beginPath();
@@ -78,284 +81,255 @@ export function makeSidewalkTexture() {
     g.lineTo(i * 64, 256);
     g.stroke();
   }
-  for (let i = 0; i < 800; i++) {
-    g.fillStyle = 'rgba(255,255,255,0.04)';
-    g.fillRect(Math.random() * 256, Math.random() * 256, 2, 2);
-  }
-  const tex = canvasTexture(c);
-  tex.wrapS = THREE.RepeatWrapping;
-  tex.wrapT = THREE.RepeatWrapping;
-  tex.repeat.set(1, 8);
+  noiseDots(g, 256, 256, 600, 0.25);
+  const tex = canvasTexture(c, true);
+  tex.repeat.set(2, 10);
   return tex;
 }
 
-export function makeCrosswalkTexture() {
-  const c = canvas(512, 128);
+export function makeRoofTexture() {
+  const c = canvas(128, 64);
   const g = c.getContext('2d');
-  g.clearRect(0, 0, 512, 128);
-  g.fillStyle = 'rgba(244,241,234,0.92)';
-  for (let i = 0; i < 8; i++) {
-    g.fillRect(18 + i * 64, 16, 36, 96);
+  g.fillStyle = '#8d4a3a';
+  g.fillRect(0, 0, 128, 64);
+  g.strokeStyle = 'rgba(60,24,18,0.45)';
+  g.lineWidth = 2;
+  for (let y = 4; y < 64; y += 8) {
+    g.beginPath();
+    g.moveTo(0, y);
+    g.lineTo(128, y);
+    g.stroke();
   }
-  const tex = canvasTexture(c);
-  return tex;
+  return canvasTexture(c, true);
 }
 
-const PLASTER = ['#f0c2b4', '#f3e09a', '#b7e0c8', '#f4cfe0', '#c9d4f6', '#e7d3b4', '#d7c2ae', '#9fd0c8'];
-
-export function makeFacades() {
-  return PLASTER.map((base, index) => makeFacade(base, index));
+export function makeAwningTexture() {
+  const c = canvas(128, 64);
+  const g = c.getContext('2d');
+  for (let x = 0; x < 128; x += 16) {
+    g.fillStyle = (x / 16) % 2 === 0 ? '#f4f1ea' : '#2f6b45';
+    g.fillRect(x, 0, 16, 64);
+  }
+  g.fillStyle = 'rgba(0,0,0,0.15)';
+  g.fillRect(0, 56, 128, 8);
+  return canvasTexture(c, true);
 }
 
-function makeFacade(base, salt) {
-  const S = 256;
-  const color = canvas(S, S);
-  const emissive = canvas(S, S);
-  const g = color.getContext('2d');
-  const e = emissive.getContext('2d');
-  g.fillStyle = base;
+export function makeFabricTexture(hex, stripe) {
+  const c = canvas(64, 64);
+  const g = c.getContext('2d');
+  g.fillStyle = hex;
+  g.fillRect(0, 0, 64, 64);
+  noiseDots(g, 64, 64, 80, 0.18);
+  if (stripe) {
+    g.fillStyle = 'rgba(255,255,255,0.35)';
+    g.fillRect(0, 26, 64, 6);
+  }
+  return canvasTexture(c, false);
+}
+
+export function makeFaceTexture(tone) {
+  const c = canvas(64, 64);
+  const g = c.getContext('2d');
+  g.fillStyle = tone;
+  g.fillRect(0, 0, 64, 64);
+  // Sombra leve nas laterais pra não parecer um adesivo chapado.
+  const shade = g.createLinearGradient(0, 0, 64, 0);
+  shade.addColorStop(0, 'rgba(0,0,0,0.18)');
+  shade.addColorStop(0.5, 'rgba(0,0,0,0)');
+  shade.addColorStop(1, 'rgba(0,0,0,0.18)');
+  g.fillStyle = shade;
+  g.fillRect(0, 0, 64, 64);
+  g.fillStyle = '#1a120e';
+  g.fillRect(14, 26, 8, 3);
+  g.fillRect(42, 26, 8, 3);
+  g.fillStyle = 'rgba(90,40,40,0.35)';
+  g.fillRect(26, 44, 12, 3);
+  return canvasTexture(c, false);
+}
+
+const FACADES = [
+  { base: '#e4c3a4', trim: '#c49a78', door: '#2c241e', floors: 3, shop: false, bars: true, number: '11', graffiti: false },
+  { base: '#d98b73', trim: '#b86a58', door: '#1c1a22', floors: 3, shop: false, bars: true, number: '27', graffiti: false },
+  { base: '#e7b7b0', trim: '#c98e8e', door: '#3a2428', floors: 2, shop: false, bars: true, number: '12', graffiti: true },
+  { base: '#e6d3a1', trim: '#c2a56a', door: '#5a3a22', floors: 2, shop: true, bars: false, number: '48', graffiti: false },
+  { base: '#d5d0c4', trim: '#b3ab9c', door: '#243028', floors: 3, shop: false, bars: true, number: '103', graffiti: false },
+  { base: '#c9d2c2', trim: '#8aa388', door: '#1e2a24', floors: 2, shop: true, bars: true, number: '9', graffiti: false },
+  { base: '#efe6d6', trim: '#d2c3aa', door: '#16324a', floors: 3, shop: false, bars: true, number: '64', graffiti: true },
+  { base: '#d8c2a4', trim: '#a89880', door: '#2a2a2a', floors: 2, shop: true, bars: false, number: '15', graffiti: false },
+];
+
+export function makeFacadeAtlas() {
+  const S = 1024;
+  const c = canvas(S, S);
+  const g = c.getContext('2d');
+  g.fillStyle = '#888';
   g.fillRect(0, 0, S, S);
-  // Sujeira leve embaixo, típica de parede de rua.
-  const dirt = g.createLinearGradient(0, 0, 0, S);
+  const cellW = 256;
+  const cellH = 512;
+  FACADES.forEach((spec, i) => {
+    const col = i % 4;
+    const row = (i / 4) | 0;
+    paintFacade(g, col * cellW, row * cellH, cellW, cellH, spec);
+  });
+  return {
+    texture: canvasTexture(c, false),
+    cells: FACADES.map((_, i) => {
+      const col = i % 4;
+      const row = (i / 4) | 0;
+      const u0 = col / 4;
+      const u1 = (col + 1) / 4;
+      // flipY: o topo da célula no canvas vira o v maior.
+      const vTop = 1 - (row * cellH) / S;
+      const vBottom = 1 - ((row + 1) * cellH) / S;
+      return { u0, u1, vTop, vBottom };
+    }),
+  };
+}
+
+function paintFacade(g, x, y, w, h, spec) {
+  g.fillStyle = spec.base;
+  g.fillRect(x, y, w, h);
+  // Sujeira embaixo e canto de umidade.
+  const dirt = g.createLinearGradient(0, y, 0, y + h);
   dirt.addColorStop(0, 'rgba(0,0,0,0)');
-  dirt.addColorStop(1, 'rgba(40,24,16,0.28)');
+  dirt.addColorStop(0.72, 'rgba(80,50,30,0.05)');
+  dirt.addColorStop(1, 'rgba(40,28,18,0.38)');
   g.fillStyle = dirt;
-  g.fillRect(0, 0, S, S);
+  g.fillRect(x, y, w, h);
+  for (let i = 0; i < 180; i++) {
+    g.fillStyle = `rgba(60,40,30,${Math.random() * 0.15})`;
+    g.fillRect(x + Math.random() * w, y + Math.random() * h, 2, 2);
+  }
 
-  e.fillStyle = '#000';
-  e.fillRect(0, 0, S, S);
-
-  const cols = 4;
-  const rows = 5;
-  const marginX = 16;
-  const marginY = 14;
-  const gapX = 12;
-  const gapY = 16;
-  const cellW = (S - marginX * 2 - gapX * (cols - 1)) / cols;
-  const cellH = (S - marginY * 2 - gapY * (rows - 1)) / rows;
-
-  for (let r = 0; r < rows; r++) {
-    for (let col = 0; col < cols; col++) {
-      const x = marginX + col * (cellW + gapX);
-      const y = marginY + r * (cellH + gapY);
-      const n = Math.abs(Math.sin((r + 1) * 12.3 + (col + 1) * 4.7 + salt * 3.1));
-      const lit = n > 0.38;
-      g.fillStyle = '#241910';
-      g.fillRect(x - 2, y - 2, cellW + 4, cellH + 4);
-      if (lit) {
-        const warm = n > 0.55;
-        const css = warm ? (n > 0.78 ? '#ffd48a' : '#ffb15e') : '#b7ddff';
-        g.fillStyle = css;
-        g.fillRect(x, y, cellW, cellH);
-        g.fillStyle = 'rgba(90,30,50,0.28)';
-        g.fillRect(x, y, cellW * 0.28, cellH);
-        e.fillStyle = warm ? '#ffc56a' : '#d2ecff';
-        e.fillRect(x, y, cellW, cellH);
-      } else {
-        g.fillStyle = '#141820';
-        g.fillRect(x, y, cellW, cellH);
+  const floors = spec.floors;
+  const top = y + 28;
+  const bottom = y + h - 18;
+  const span = bottom - top;
+  for (let f = 0; f < floors; f++) {
+    const fy = top + (span / floors) * f;
+    const fh = span / floors - 10;
+    if (f === floors - 1 && spec.shop) {
+      paintShutter(g, x + 18, fy + 8, w - 36, fh);
+      g.fillStyle = '#1a1c20';
+      g.font = '700 22px sans-serif';
+      g.textAlign = 'center';
+      g.fillText(f % 2 === 0 ? 'MERCADO' : 'LANCHES', x + w / 2, fy + 4);
+    } else {
+      const cols = 2;
+      for (let k = 0; k < cols; k++) {
+        const wx = x + 28 + k * ((w - 40) / cols);
+        const ww = (w - 70) / cols;
+        paintWindow(g, wx, fy + 8, ww, fh - 16, spec.bars && f < floors - 1);
       }
     }
   }
 
-  g.strokeStyle = 'rgba(50,32,32,0.35)';
+  // Porta térrea quando não é loja.
+  if (!spec.shop) {
+    g.fillStyle = spec.door;
+    g.fillRect(x + w * 0.38, y + h - 78, w * 0.24, 70);
+    g.fillStyle = 'rgba(255,220,140,0.15)';
+    g.fillRect(x + w * 0.42, y + h - 68, 10, 16);
+  }
+
+  // Número da casa, como nas fachadas do beco.
+  g.fillStyle = '#2a211c';
+  g.font = '700 28px sans-serif';
+  g.textAlign = 'left';
+  g.fillText(spec.number, x + 12, y + 36);
+
+  // Eletroduto e caixa.
+  g.strokeStyle = 'rgba(40,40,42,0.7)';
   g.lineWidth = 3;
-  for (let r = 0; r < rows; r++) {
-    const y = marginY + r * (cellH + gapY) + cellH + 5;
+  g.beginPath();
+  g.moveTo(x + w - 22, y + 10);
+  g.lineTo(x + w - 22, y + 90);
+  g.stroke();
+  g.fillStyle = '#c8c4bc';
+  g.fillRect(x + w - 36, y + 88, 28, 22);
+  g.strokeRect(x + w - 36, y + 88, 28, 22);
+
+  if (spec.graffiti) {
+    g.strokeStyle = 'rgba(40,70,90,0.55)';
+    g.lineWidth = 4;
     g.beginPath();
-    g.moveTo(6, y);
-    g.lineTo(S - 6, y);
+    g.moveTo(x + 16, y + h * 0.55);
+    g.bezierCurveTo(x + 40, y + h * 0.4, x + 70, y + h * 0.7, x + 110, y + h * 0.48);
     g.stroke();
   }
 
-  const map = canvasTexture(color);
-  const em = canvasTexture(emissive);
-  map.wrapS = map.wrapT = THREE.RepeatWrapping;
-  em.wrapS = em.wrapT = THREE.RepeatWrapping;
-  return { map, emissive: em };
+  // Pingadeira.
+  g.fillStyle = spec.trim;
+  g.fillRect(x, y + h - 8, w, 8);
 }
 
-const SIGNS = [
-  ['PADARIA', 'PÃO QUENTE', '#7a1028', '#ffe28a'],
-  ['AÇAÍ', 'DA ESQUINA', '#10243f', '#3df0ff'],
-  ['LANCHONETE', 'DA BAIXADA', '#ff2d6a', '#fff6ea'],
-  ['MERCADO', 'BOM PREÇO', '#14301f', '#d6ff6b'],
-  ['SALÃO', 'BELEZA', '#3a1458', '#ffb3e0'],
-  ['FARMÁCIA', '24 HORAS', '#0d3a34', '#e8fff6'],
-  ['PIX', 'AQUI', '#1a1040', '#3df0ff'],
-  ['OFICINA', 'DO TIÃO', '#3a220c', '#ffc400'],
-  ['BAR DO ZÉ', '', '#240814', '#ffd0a8'],
-  ['LAN HOUSE', '', '#101828', '#7aa2ff'],
-  ['PASTEL', 'DO CHICO', '#5a220c', '#ffe7b0'],
-  ['BELFORD', 'ROXO', '#14081c', '#ffc400'],
-];
-
-export function makeSignMaterials() {
-  return SIGNS.map(([a, b, bg, fg]) => makeSignMaterial(a, b, bg, fg));
-}
-
-export function makeSignMaterial(line1, line2, bg, fg) {
-  const c = canvas(512, 256);
-  const g = c.getContext('2d');
-  g.fillStyle = bg;
-  g.fillRect(0, 0, 512, 256);
-  g.strokeStyle = fg;
-  g.lineWidth = 14;
-  g.strokeRect(12, 12, 488, 232);
-  g.fillStyle = fg;
-  g.textAlign = 'center';
-  g.textBaseline = 'middle';
-  g.font = '400 92px "Bebas Neue", Impact, sans-serif';
-  if (line2) {
-    g.fillText(line1, 256, 96);
-    g.font = '400 78px "Bebas Neue", Impact, sans-serif';
-    g.fillText(line2, 256, 170);
-  } else {
-    g.font = '400 108px "Bebas Neue", Impact, sans-serif';
-    g.fillText(line1, 256, 132);
-  }
-  const mat = new THREE.MeshBasicMaterial({ map: canvasTexture(c) });
-  mat.color.multiplyScalar(1.7);
-  return mat;
-}
-
-export function makeGantryTexture() {
-  const c = canvas(1024, 256);
-  const g = c.getContext('2d');
-  g.fillStyle = '#140810';
-  g.fillRect(0, 0, 1024, 256);
-  g.fillStyle = '#ffc400';
-  g.fillRect(0, 0, 1024, 10);
-  g.fillRect(0, 246, 1024, 10);
-  g.font = '400 132px "Bebas Neue", Impact, sans-serif';
-  g.textAlign = 'center';
-  g.textBaseline = 'middle';
-  g.fillStyle = '#fff3d2';
-  g.fillText('BELFORD ROXO', 512, 132);
-  return canvasTexture(c);
-}
-
-export function makeGraffitiMaterials() {
-  const palettes = [
-    ['#ff2d6a', '#ffc400', '#3df0ff'],
-    ['#7aa2ff', '#fff6ea', '#ff2d6a'],
-    ['#d6ff6b', '#ff7a18', '#1a1030'],
-  ];
-  return palettes.map((colors) => {
-    const c = canvas(256, 256);
-    const g = c.getContext('2d');
-    g.clearRect(0, 0, 256, 256);
-    g.globalAlpha = 0.92;
-    for (let i = 0; i < 7; i++) {
-      g.strokeStyle = colors[i % colors.length];
-      g.lineWidth = 8 + (i % 3) * 4;
-      g.lineCap = 'round';
+function paintWindow(g, x, y, w, h, bars) {
+  g.fillStyle = '#d9d4cc';
+  g.fillRect(x - 3, y - 3, w + 6, h + 6);
+  const glass = g.createLinearGradient(x, y, x + w, y + h);
+  glass.addColorStop(0, '#8ea4ae');
+  glass.addColorStop(1, '#5e727c');
+  g.fillStyle = glass;
+  g.fillRect(x, y, w, h);
+  g.strokeStyle = 'rgba(255,255,255,0.25)';
+  g.strokeRect(x + 2, y + 2, w * 0.45, h * 0.4);
+  if (bars) {
+    g.strokeStyle = '#4a4e52';
+    g.lineWidth = 2;
+    const n = 4;
+    for (let i = 1; i < n; i++) {
+      const bx = x + (w / n) * i;
       g.beginPath();
-      g.moveTo(20 + i * 18, 210 - i * 12);
-      g.bezierCurveTo(80, 40 + i * 20, 140, 200 - i * 15, 230, 30 + i * 22);
+      g.moveTo(bx, y);
+      g.lineTo(bx, y + h);
       g.stroke();
     }
-    g.globalAlpha = 1;
-    const mat = new THREE.MeshBasicMaterial({
-      map: canvasTexture(c),
-      transparent: true,
-      depthWrite: false,
-    });
-    return mat;
-  });
-}
-
-export function makeJacketGraphic() {
-  const c = canvas(256, 256);
-  const g = c.getContext('2d');
-  g.clearRect(0, 0, 256, 256);
-  g.fillStyle = '#ff2d6a';
-  g.beginPath();
-  g.moveTo(128, 28);
-  g.lineTo(168, 110);
-  g.lineTo(138, 110);
-  g.lineTo(176, 228);
-  g.lineTo(78, 128);
-  g.lineTo(116, 128);
-  g.closePath();
-  g.fill();
-  g.fillStyle = '#1a0610';
-  g.font = '400 54px "Bebas Neue", Impact, sans-serif';
-  g.textAlign = 'center';
-  g.textBaseline = 'middle';
-  g.fillText('FOGE', 128, 214);
-  const mat = new THREE.MeshBasicMaterial({
-    map: canvasTexture(c),
-    transparent: true,
-    depthWrite: false,
-  });
-  return mat;
-}
-
-export function makeBusWindowTexture() {
-  const c = canvas(512, 180);
-  const g = c.getContext('2d');
-  g.fillStyle = '#123028';
-  g.fillRect(0, 0, 512, 180);
-  // Fluorescente de ônibus à noite.
-  const glow = g.createLinearGradient(0, 0, 0, 180);
-  glow.addColorStop(0, '#d9ffb0');
-  glow.addColorStop(1, '#6fbf73');
-  g.fillStyle = glow;
-  g.fillRect(0, 0, 512, 180);
-  g.fillStyle = '#102018';
-  for (let i = 0; i < 9; i++) {
-    const x = 18 + i * 56;
     g.beginPath();
-    g.arc(x + 16, 108, 16, 0, Math.PI * 2);
-    g.fill();
-    g.fillRect(x + 4, 122, 24, 40);
-    if (i % 2 === 0) {
-      g.fillRect(x + 28, 96, 8, 28);
-    }
+    g.moveTo(x, y + h * 0.55);
+    g.lineTo(x + w, y + h * 0.55);
+    g.stroke();
   }
-  // Divisória das janelas.
-  g.fillStyle = 'rgba(12,20,16,0.55)';
-  for (let i = 1; i < 8; i++) g.fillRect(i * 64, 0, 6, 180);
-  return canvasTexture(c);
 }
 
-export function makeDestinationTexture(line) {
-  const c = canvas(512, 128);
+function paintShutter(g, x, y, w, h) {
+  g.fillStyle = '#8d9298';
+  g.fillRect(x, y, w, h);
+  g.strokeStyle = 'rgba(40,42,46,0.45)';
+  g.lineWidth = 2;
+  for (let yy = y + 4; yy < y + h; yy += 7) {
+    g.beginPath();
+    g.moveTo(x, yy);
+    g.lineTo(x + w, yy);
+    g.stroke();
+  }
+  // Porta entreaberta.
+  g.fillStyle = '#1c1e22';
+  g.fillRect(x + 6, y + h * 0.72, w - 12, h * 0.28);
+}
+
+export function makeTaxiSignTexture() {
+  const c = canvas(128, 48);
   const g = c.getContext('2d');
-  g.fillStyle = '#061018';
-  g.fillRect(0, 0, 512, 128);
-  g.fillStyle = '#3df0ff';
-  g.font = '400 64px "Bebas Neue", Impact, sans-serif';
+  g.fillStyle = '#f2f2f2';
+  g.fillRect(0, 0, 128, 48);
+  g.fillStyle = '#1a1a1a';
+  g.font = '700 28px sans-serif';
   g.textAlign = 'center';
   g.textBaseline = 'middle';
-  g.fillText(line, 256, 66);
-  return canvasTexture(c);
+  g.fillText('TÁXI', 64, 26);
+  return canvasTexture(c, false);
 }
 
-export function makeGlowTexture() {
-  const c = canvas(128, 128);
+export function makeBusDestTexture() {
+  const c = canvas(256, 64);
   const g = c.getContext('2d');
-  const grd = g.createRadialGradient(64, 64, 0, 64, 64, 64);
-  grd.addColorStop(0, 'rgba(255,255,255,1)');
-  grd.addColorStop(0.18, 'rgba(255,236,190,0.95)');
-  grd.addColorStop(0.45, 'rgba(255,170,60,0.28)');
-  grd.addColorStop(1, 'rgba(255,140,40,0)');
-  g.fillStyle = grd;
-  g.fillRect(0, 0, 128, 128);
-  const tex = canvasTexture(c);
-  return tex;
-}
-
-export function makeStripeTexture() {
-  const c = canvas(128, 32);
-  const g = c.getContext('2d');
-  for (let x = 0; x < 128; x += 16) {
-    g.fillStyle = (x / 16) % 2 === 0 ? '#ffb000' : '#1a1208';
-    g.fillRect(x, 0, 16, 32);
-  }
-  const tex = canvasTexture(c);
-  tex.wrapS = THREE.RepeatWrapping;
-  tex.wrapT = THREE.RepeatWrapping;
-  return tex;
+  g.fillStyle = '#102018';
+  g.fillRect(0, 0, 256, 64);
+  g.fillStyle = '#e8f6c8';
+  g.font = '700 28px sans-serif';
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  g.fillText('BELFORD ROXO', 128, 34);
+  return canvasTexture(c, false);
 }

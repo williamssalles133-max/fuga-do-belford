@@ -1,10 +1,10 @@
 # Fuga do Belford
 
-Runner 3D infinito, em **beta offline**, passado numa avenida noturna da Baixada — Belford Roxo. Você corre sozinho, desvia de moto, ônibus lotado e buraco, e o recorde fica só no aparelho.
+Runner 3D infinito, em **beta offline**, numa rua de dia da Baixada — casas, comércio, fiação e trânsito. Você desvia de moto, carro, táxi, van, ônibus e buraco. O recorde fica só no aparelho.
 
 Não tem login, conta, anúncio, Firebase nem rede. Dá para jogar no modo avião.
 
-Versão `0.1.0-beta`. Pacote `com.williams.fugadobelford`.
+Versão `0.2.0-beta`. Pacote `com.williams.fugadobelford`.
 
 ## Como jogar
 
@@ -13,7 +13,7 @@ O app abre em retrato.
 1. Na tela inicial, toque em **Jogar**.
 2. A contagem (`3`, `2`, `1`, `VAI`) solta a corrida. A rua anda sozinha.
 3. **Deslize para os lados** (ou toque no terço esquerdo/direito da tela) para trocar de faixa.
-4. **Deslize para cima** (ou toque no centro) para pular o buraco. Moto e ônibus não se pulam.
+4. **Deslize para cima** (ou toque no centro) para pular o buraco. Moto, carro, táxi, van e ônibus não se pulam.
 5. Bater é game over. O placar é a distância, com bônus de “quase”.
 6. **Jogar de novo** ou voltar ao **menu**. O **recorde** aparece nos dois.
 

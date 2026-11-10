@@ -60,8 +60,7 @@ html, body {
   z-index: 1;
   pointer-events: none;
   background:
-    radial-gradient(ellipse at 50% 42%, transparent 40%, rgba(0, 0, 0, 0.38) 100%),
-    linear-gradient(180deg, rgba(0, 0, 0, 0.28), transparent 16%, transparent 72%, rgba(0, 0, 0, 0.4));
+    radial-gradient(ellipse at 50% 42%, transparent 58%, rgba(30, 28, 26, 0.18) 100%);
 }
 
 #flash {

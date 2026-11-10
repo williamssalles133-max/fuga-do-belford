@@ -1,5 +1,5 @@
-// Céu noturno com faixa de luz da cidade no horizonte.
-// O domo acompanha a câmera; a direção vem do espaço local, senão a lua foge.
+// Céu de dia encoberto e, no horizonte, o bondinho — referência de morro
+// com teleférico, já que o vídeo não mostra trem.
 
 import * as THREE from 'three';
 
@@ -10,44 +10,43 @@ export function createSky() {
     depthWrite: false,
     fog: false,
     uniforms: {
-      top: { value: new THREE.Color(0x070514) },
-      mid: { value: new THREE.Color(0x2c1248) },
-      horizon: { value: new THREE.Color(0xff6a2a) },
-      glow: { value: new THREE.Color(0xff2d78) },
+      zenith: { value: new THREE.Color(0x9eacb6) },
+      horizon: { value: new THREE.Color(0xd5d8d4) },
+      cloud: { value: new THREE.Color(0xe7e6e2) },
     },
     vertexShader: `
       varying vec3 vDir;
       void main() {
-        vDir = position;
+        vDir = normalize(position);
         gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
       }
     `,
     fragmentShader: `
       varying vec3 vDir;
-      uniform vec3 top, mid, horizon, glow;
-      float hash(vec3 p) {
-        p = fract(p * 0.1031);
-        p += dot(p, p.yzx + 33.33);
-        return fract((p.x + p.y) * p.z);
+      uniform vec3 zenith, horizon, cloud;
+      float hash(vec2 p) {
+        return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+      }
+      float noise(vec2 p) {
+        vec2 i = floor(p);
+        vec2 f = fract(p);
+        f = f * f * (3.0 - 2.0 * f);
+        float a = hash(i);
+        float b = hash(i + vec2(1.0, 0.0));
+        float c = hash(i + vec2(0.0, 1.0));
+        float d = hash(i + vec2(1.0, 1.0));
+        return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
       }
       void main() {
-        vec3 dir = normalize(vDir);
-        float h = dir.y;
-        vec3 col = mix(horizon, mid, smoothstep(-0.04, 0.2, h));
-        col = mix(col, top, smoothstep(0.1, 0.72, h));
-        float band = exp(-pow(h * 8.5, 2.0));
-        col += glow * band * 0.32;
-        vec3 grid = dir * 520.0;
-        vec3 cell = floor(grid);
-        vec3 f = fract(grid) - 0.5;
-        float stars = step(0.997, hash(cell));
-        stars *= smoothstep(0.42, 0.05, length(f));
-        stars *= smoothstep(0.12, 0.4, h);
-        col += stars * 0.9;
-        vec3 moon = normalize(vec3(0.48, 0.64, -0.22));
-        float m = smoothstep(0.9972, 0.9994, dot(dir, moon));
-        col += vec3(0.82, 0.88, 1.0) * m * 1.35;
-        col += (hash(vec3(gl_FragCoord.xy, 2.0)) - 0.5) * 0.012;
+        float h = clamp(vDir.y, 0.0, 1.0);
+        vec3 col = mix(horizon, zenith, smoothstep(0.0, 0.55, h));
+        float n = noise(vDir.xz * 4.5 + vec2(vDir.y * 2.0));
+        n += 0.35 * noise(vDir.xz * 9.0);
+        float puff = smoothstep(0.55, 0.85, n) * smoothstep(0.02, 0.28, h);
+        col = mix(col, cloud, puff * 0.42);
+        // Mancha mais clara onde o sol está atrás da nuvem.
+        float sun = pow(max(dot(normalize(vDir), normalize(vec3(0.45, 0.55, 0.15))), 0.0), 8.0);
+        col += vec3(1.0, 0.96, 0.9) * sun * 0.18;
         gl_FragColor = vec4(col, 1.0);
       }
     `,
@@ -57,17 +56,56 @@ export function createSky() {
   sky.frustumCulled = false;
   sky.renderOrder = -1;
 
-  const skylineMat = new THREE.MeshBasicMaterial({ color: 0x140818, fog: false });
-  const skyline = new THREE.Group();
-  for (let i = 0; i < 30; i++) {
-    const h = 2.5 + Math.pow(Math.random(), 1.15) * 18;
-    const w = 2.2 + Math.random() * 6;
-    const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, 3), skylineMat);
-    const a = -1.05 + (i / 29) * 2.1;
-    const r = 100;
-    b.position.set(Math.sin(a) * r, h / 2 - 10, -Math.cos(a) * Math.abs(r));
-    skyline.add(b);
+  const hillMat = new THREE.MeshBasicMaterial({ color: 0x8d8a82, fog: false });
+  const hills = new THREE.Group();
+  for (let i = 0; i < 18; i++) {
+    const h = 6 + Math.random() * 16;
+    const w = 10 + Math.random() * 18;
+    const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, 8), hillMat);
+    const a = -1.1 + (i / 17) * 2.2;
+    b.position.set(Math.sin(a) * 130, h / 2 - 18, -Math.cos(a) * 120);
+    hills.add(b);
   }
-  sky.add(skyline);
+  sky.add(hills);
+  sky.add(makeBondinho());
   return sky;
+}
+
+function makeBondinho() {
+  const g = new THREE.Group();
+  const cableMat = new THREE.MeshBasicMaterial({ color: 0x2a2c30, fog: false });
+  const cabinMat = new THREE.MeshStandardMaterial({ color: 0xc5382a, roughness: 0.5, metalness: 0.2 });
+  const glassMat = new THREE.MeshStandardMaterial({ color: 0x9eb4bc, roughness: 0.15, metalness: 0.4 });
+  // Cabo alto, atrás dos morros baixos, atravessando o horizonte.
+  const pts = [];
+  for (let i = 0; i <= 24; i++) {
+    const t = i / 24;
+    const x = -70 + t * 140;
+    const sag = Math.sin(t * Math.PI) * 6;
+    pts.push(new THREE.Vector3(x, 28 - sag, -90));
+  }
+  const curve = new THREE.CatmullRomCurve3(pts);
+  const tube = new THREE.Mesh(new THREE.TubeGeometry(curve, 24, 0.15, 4, false), cableMat);
+  g.add(tube);
+  for (let i = 0; i < 4; i++) {
+    const p = curve.getPoint(0.18 + i * 0.2);
+    const cabin = new THREE.Group();
+    const body = new THREE.Mesh(new THREE.BoxGeometry(3.2, 2.2, 2.2), cabinMat);
+    const glass = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.8, 2.25), glassMat);
+    glass.position.y = 0.3;
+    const hanger = new THREE.Mesh(new THREE.BoxGeometry(0.12, 1.1, 0.12), cableMat);
+    hanger.position.y = 1.6;
+    cabin.add(body, glass, hanger);
+    cabin.position.copy(p);
+    cabin.position.y -= 1.8;
+    g.add(cabin);
+  }
+  // Torres finas.
+  const towerMat = new THREE.MeshStandardMaterial({ color: 0xb7b3aa, roughness: 0.7, metalness: 0.2 });
+  for (const x of [-48, 48]) {
+    const tower = new THREE.Mesh(new THREE.BoxGeometry(1.2, 22, 1.2), towerMat);
+    tower.position.set(x, 8, -90);
+    g.add(tower);
+  }
+  return g;
 }

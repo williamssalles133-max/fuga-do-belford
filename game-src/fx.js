@@ -72,7 +72,7 @@ export function createBurst() {
   const geo = new THREE.BoxGeometry(0.09, 0.09, 0.09);
   const group = new THREE.Group();
   const bits = [];
-  const colors = [0xffe08a, 0xff2d6a, 0x3df0ff, 0xfff6ea];
+  const colors = [0x8a8074, 0xc4b8a4, 0x6a6258, 0xe7e0d4];
   for (let i = 0; i < n; i++) {
     const mat = new THREE.MeshBasicMaterial({ color: colors[i % colors.length] });
     const m = new THREE.Mesh(geo, mat);

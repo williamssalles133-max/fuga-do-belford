@@ -9,7 +9,7 @@ import {
   JUMP_CLEAR_Y,
 } from './config.js';
 
-const TYPES = new Set(['moto', 'onibus', 'buraco']);
+const TYPES = new Set(['moto', 'carro', 'taxi', 'van', 'onibus', 'buraco']);
 
 export function difficultyFromDistance(distance) {
   return Math.min(1, 1 - Math.exp(-Math.max(0, distance) / 720));
@@ -47,11 +47,21 @@ export function spawnInterval(difficulty, speed) {
 }
 
 export function pickType(rng, difficulty) {
-  const x = rng();
-  const pBus = 0.16 + clamp01(difficulty) * 0.36;
-  const pMoto = 0.36;
-  if (x < pBus) return 'onibus';
-  if (x < pBus + pMoto) return 'moto';
+  const d = clamp01(difficulty);
+  // Soma 1 em qualquer dificuldade. Sólidos nunca fecham as 3 faixas (pickPattern).
+  const weights = [
+    ['onibus', 0.12 + d * 0.16],
+    ['van', 0.08],
+    ['taxi', 0.1],
+    ['carro', 0.14],
+    ['moto', 0.18],
+    ['buraco', 0.38 - d * 0.16],
+  ];
+  let x = rng();
+  for (let i = 0; i < weights.length; i++) {
+    x -= weights[i][1];
+    if (x <= 0) return weights[i][0];
+  }
   return 'buraco';
 }
 
